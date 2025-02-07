@@ -1,51 +1,25 @@
-name: Rust Build for Multiple Platforms
+# .github/workflows/release.yml
 
 on:
+    release:
+        types: [created]
     push:
-      branches: [ "master" ]
-    pull_request:
-      branches: [ "master" ]
+        branches: ["**"]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        rust-version: [stable]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Rust
-        uses: actions/setup-rust@v1
-        with:
-          rust-version: ${{ matrix.rust-version }}
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Install dependencies (cross, if needed)
-        run: |
-          cargo install cross
-
-      - name: Build the project for ${{ matrix.os }}
-        run: |
-          if [ $RUNNER_OS = "Linux" ]; then
-            cross build --target x86_64-unknown-linux-gnu --release
-          elif [ $RUNNER_OS = "macOS" ]; then
-            cross build --target x86_64-apple-darwin --release
-          elif [ $RUNNER_OS = "Windows" ]; then
-            cross build --target x86_64-pc-windows-gnu --release
-          fi
-
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-build-artifacts-${{ matrix.os }}
-          path: target/${{ matrix.os }}-release/
+    release:
+        name: release ${{ matrix.target }}
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                target: [x86_64-pc-windows-gnu, x86_64-unknown-linux-musl]
+        steps:
+            - uses: actions/checkout@master
+            - name: Compile and release
+                uses: rust-build/rust-build.action@v1.4.5
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                with:
+                    RUSTTARGET: ${{ matrix.target }}
+                    EXTRA_FILES: "README.md LICENSE"
